@@ -1,34 +1,35 @@
 import itertools
 
-test_data = [9, 1, 2, 1, 2, 1, 2, 9]
-
 
 def load_input(fname="input.txt"):
     with open(fname) as f:
         return [int(d) for d in f.read().strip()]
 
 
-def pairwise(sequence, offset=1):
+def pairwise(sequence, offset=1, circular=True):
     """
-    Generator that returns offset pairs of elements from sequence, e.g.
+    Iterator over offset pairs of elements from sequence
     >>> list(pairwise([1, 2, 3]))
     [(1, 2), (2, 3), (3, 1)]
+    >>> list(pairwise([1, 2, 3], circular=False))
+    [(1, 2), (2, 3)]
     >>> list(pairwise([1, 2, 3]), offset=2)
     [(1, 3), (2, 1), (3, 2)]
     """
-    a = iter(sequence)
-    b = itertools.cycle(sequence)
+    a, b = itertools.tee(sequence)
+    if circular:
+        b = itertools.cycle(b)
     list(itertools.islice(b, offset))
     return zip(a, b)
 
 
 def captcha(sequence, offset=1):
     """
-    The sum of all digits that match the corresponding offset digit. The
-    sequence is circular.
+    Sum of all digits that match the corresponding offset digit. Sequence is
+    circular.
     >>> captcha([1, 1, 2, 2])  # 1st matches 2nd, 3rd matches 4th
     3
-    >>> captcha([9,1, 2, 1, 2, 1, 2, 9])  # last matches first
+    >>> captcha([9, 1, 2, 1, 2, 1, 2, 9])  # last matches first
     9
     """
     return sum(l for l, r in pairwise(sequence, offset=offset) if l == r)
