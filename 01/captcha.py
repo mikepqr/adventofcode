@@ -18,8 +18,7 @@ def pairwise(sequence, offset=1):
     """
     a = iter(sequence)
     b = itertools.cycle(sequence)
-    if offset:
-        list(itertools.islice(b, offset))
+    list(itertools.islice(b, offset))
     return zip(a, b)
 
 
