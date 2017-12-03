@@ -45,8 +45,12 @@ def checksum(data, rowfn=minmaxdiff):
 
 
 def part1():
-    return checksum(load_input())
+    ans = checksum(load_input())
+    assert ans == 21845
+    return ans
 
 
 def part2():
-    return checksum(load_input(), rowfn=multiplesdiv)
+    ans = checksum(load_input(), rowfn=multiplesdiv)
+    assert ans == 191
+    return ans
