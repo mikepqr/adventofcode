@@ -20,8 +20,7 @@ def pairwise(sequence, offset=1):
     b = itertools.cycle(sequence)
     if offset:
         list(itertools.islice(b, offset))
-    for l, r in zip(a, b):
-        yield l, r
+    return zip(a, b)
 
 
 def captcha(sequence, offset=1):
@@ -37,9 +36,13 @@ def captcha(sequence, offset=1):
 
 
 def part1():
-    print(captcha(load_input()))
+    ans = captcha(load_input())
+    assert ans == 1182
+    return ans
 
 
 def part2():
     data = load_input()
-    print(captcha(data, offset=int(len(data)/2)))
+    ans = captcha(data, offset=int(len(data)/2))
+    assert ans == 1152
+    return ans
