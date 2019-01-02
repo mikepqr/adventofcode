@@ -33,16 +33,12 @@ def parse_node(data):
     n_children = data[0]
     n_metadata = data[1]
     data = data[2:]
-    if n_children == 0:
-        metadata, data = data[:n_metadata], data[n_metadata:]
-        return Node(metadata), data
-    else:
-        children = []
-        for i in range(n_children):
-            child, data = parse_node(data)
-            children.append(child)
-        metadata, data = data[:n_metadata], data[n_metadata:]
-        return Node(metadata, children=children), data
+    children = []
+    for i in range(n_children):
+        child, data = parse_node(data)
+        children.append(child)
+    metadata, data = data[:n_metadata], data[n_metadata:]
+    return Node(metadata, children=children), data
 
 
 def parse_input():
