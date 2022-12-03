@@ -1,8 +1,5 @@
-import string
-
-
 def priority(c: str) -> int:
-    if c in string.ascii_lowercase:
+    if c.islower():
         return ord(c) - 96
     else:
         return ord(c) - 38
