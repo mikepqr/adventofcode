@@ -14,28 +14,23 @@ def overlap_at_all(x1, x2, y1, y2):
     return False
 
 
-def compute1(fname):
-    n_overlaps = 0
+def get_ranges(fname):
     with open(fname) as f:
         for line in f:
             x12, y12 = line.strip().split(",")
             x1, x2 = map(int, x12.split("-"))
             y1, y2 = map(int, y12.split("-"))
-            if overlap_completely(x1, x2, y1, y2):
-                n_overlaps += 1
-    return n_overlaps
+            yield x1, x2, y1, y2
+
+
+def compute1(fname):
+    return sum(
+        overlap_completely(x1, x2, y1, y2) for x1, x2, y1, y2 in get_ranges(fname)
+    )
 
 
 def compute2(fname):
-    n_overlaps = 0
-    with open(fname) as f:
-        for line in f:
-            x12, y12 = line.strip().split(",")
-            x1, x2 = map(int, x12.split("-"))
-            y1, y2 = map(int, y12.split("-"))
-            if overlap_at_all(x1, x2, y1, y2):
-                n_overlaps += 1
-    return n_overlaps
+    return sum(overlap_at_all(x1, x2, y1, y2) for x1, x2, y1, y2 in get_ranges(fname))
 
 
 def test_compute1():
