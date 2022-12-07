@@ -5,25 +5,18 @@ def parse_listing(fname):
     dirs = {}
     name = "/"
     with open(fname) as f:
-        try:
-            while True:
-                line = next(f).strip()
-                if line.startswith("$ cd .."):
-                    name = os.path.split(name)[0]
-                elif line.startswith("$ cd"):
-                    if line.split()[-1] == "/":
-                        name = "/"
-                    else:
-                        name = os.path.join(name, line.split()[-1])
-                    dirs[name] = {"file_size": 0, "subdirs": []}
-                    _ = next(f)  # discard `$ ls`
-                    continue
-                elif line.startswith("dir"):
-                    dirs[name]["subdirs"].append(os.path.join(name, line.split()[-1]))
-                else:
-                    dirs[name]["file_size"] += int(line.split()[0])
-        except StopIteration:
-            pass
+        for line in f:
+            if line.startswith("$ cd .."):
+                name = os.path.split(name)[0]
+            elif line.startswith("$ cd"):
+                name = os.path.join(name, line.split()[-1])
+                dirs[name] = {"file_size": 0, "subdirs": []}
+            elif line.startswith("$ ls"):
+                pass
+            elif line.startswith("dir"):
+                dirs[name]["subdirs"].append(os.path.join(name, line.split()[-1]))
+            else:
+                dirs[name]["file_size"] += int(line.split()[0])
     return dirs
 
 
