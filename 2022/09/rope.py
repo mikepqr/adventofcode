@@ -56,14 +56,14 @@ def compute1(fname):
 
 def compute2(fname):
     moves = parse_input(fname)
-    rope = [(0, 0) for _ in range(10)]
+    # annotation necessary to prevent this code failing pyright's checks due to
+    # https://github.com/microsoft/pyright/blob/main/docs/type-inference.md#tuple-expressions
+    rope: list[tuple[int, int]] = [(0, 0) for _ in range(10)]
     visited = set()
     visited.add(rope[-1])
     for direction, distance in moves:
         dx, dy = direction_to_delta(direction)
         for _ in range(distance):
-            # this line fails type checking in pyright but passes mypy
-            # https://github.com/microsoft/pyright/discussions/4305
             rope[0] = rope[0][0] + dx, rope[0][1] + dy
             for i in range(1, 10):
                 rope[i] = move_successor(rope[i - 1], rope[i])
