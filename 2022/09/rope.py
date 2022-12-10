@@ -15,17 +15,17 @@ def direction_to_delta(direction: Direction) -> Point:
         return -1, 0
 
 
+def clip_int(x: int) -> int:
+    """Returns 1 if x >= 1, -1 if x <=0, or 0 otherwise."""
+    return (x > 0) - (x < 0)
+
+
 def move_successor(h: Point, t: Point) -> Point:
     hx, hy = h[0], h[1]
     tx, ty = t[0], t[1]
     if abs(hx - tx) > 1 or abs(hy - ty) > 1:
-        if hx == tx:
-            ty = ty + (1 if hy > ty else -1)
-        elif hy == ty:
-            tx = tx + (1 if hx > tx else -1)
-        else:
-            ty = ty + (1 if hy > ty else -1)
-            tx = tx + (1 if hx > tx else -1)
+        tx = tx + clip_int(hx - tx)
+        ty = ty + clip_int(hy - ty)
     return tx, ty
 
 
