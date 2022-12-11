@@ -1,86 +1,85 @@
+import functools
 import math
+from dataclasses import dataclass
+from typing import Callable
 
 
-def op_maker(operation, operand):
-    if operation == "*":
-        if operand == "old":
-            op = lambda x: x * x
-        else:
-            operand = int(operand)
-            op = lambda x: x * operand
-    else:
-        operand = int(operand)
-        op = lambda x: x + operand
-
-    return op
+@dataclass
+class Monkey:
+    items: list[int]
+    op: Callable[[int], int]
+    mod: int
+    check: Callable[[int], int]
+    inspected: int = 0
 
 
-def check_maker(mod, true_dest, false_dest):
-    def check(x):
-        return true_dest if (x % mod == 0) else false_dest
-
-    return check
+def check(x, mod, true_dest, false_dest):
+    return true_dest if (x % mod == 0) else false_dest
 
 
-def parse_input(fname):
-    monkeys = {}
+def square(x):
+    return x * x
+
+
+def parse_input(fname: str) -> list[Monkey]:
+    monkeys = []
     with open(fname) as f:
-        while True:
-            try:
-                line = next(f)
-                i = int(line.split()[1].strip(":"))
-                monkeys[i] = {"inspected": 0}
-                line = next(f)
-                monkeys[i]["items"] = list(map(int, line.split(": ")[1].split(",")))
-                line = next(f)
-                monkeys[i]["op"] = op_maker(*line.split()[-2:])
-                line = next(f)
-                mod = int(line.rsplit(maxsplit=1)[-1])
-                monkeys[i]["mod"] = mod
-                line = next(f)
-                true_dest = int(line.rsplit(maxsplit=1)[-1])
-                line = next(f)
-                false_dest = int(line.rsplit(maxsplit=1)[-1])
-                monkeys[i]["check"] = check_maker(mod, true_dest, false_dest)
-                line = next(f)
-            except StopIteration:
-                break
+        chunks = f.read().split("\n\n")
+        for chunk in chunks:
+            lines = chunk.splitlines()
+            items = list(map(int, lines[1].split(": ")[1].split(",")))
+
+            operation, operand = lines[2].split()[-2:]
+            if operation == "*" and operand == "old":
+                op = square
+            else:
+                a = int(operand)
+                if operation == "*":
+                    op = functools.partial(lambda x, a: x * a, a=a)
+                else:
+                    op = functools.partial(lambda x, a: x + a, a=a)
+
+            mod = int(lines[3].split()[-1])
+            true_dest = int(lines[4].split()[-1])
+            false_dest = int(lines[5].split()[-1])
+
+            _check = functools.partial(
+                check, mod=mod, true_dest=true_dest, false_dest=false_dest
+            )
+
+            monkey = Monkey(items=items, op=op, mod=mod, check=_check)
+            monkeys.append(monkey)
     return monkeys
 
 
-def print_monkeys(monkeys):
-    for monkey in monkeys.values():
-        print(monkey["items"], monkey["inspected"])
-
-
-def compute1(fname):
+def compute1(fname) -> int:
     monkeys = parse_input(fname)
     for _ in range(20):
-        for monkey in monkeys.values():
-            while monkey["items"]:
-                item = monkey["items"].pop()
-                item = monkey["op"](item)
-                monkey["inspected"] += 1
+        for monkey in monkeys:
+            while monkey.items:
+                item = monkey.items.pop()
+                item = monkey.op(item)
+                monkey.inspected += 1
                 item = item // 3
-                dest = monkey["check"](item)
-                monkeys[dest]["items"].append(item)
-    inspections = sorted(monkey["inspected"] for monkey in monkeys.values())
+                dest = monkey.check(item)
+                monkeys[dest].items.append(item)
+    inspections = sorted(monkey.inspected for monkey in monkeys)
     return inspections[-1] * inspections[-2]
 
 
-def compute2(fname) -> str:
+def compute2(fname) -> int:
     monkeys = parse_input(fname)
-    mod = math.prod(monkey["mod"] for monkey in monkeys.values())
+    mod = math.prod(monkey.mod for monkey in monkeys)
     for _ in range(10000):
-        for monkey in monkeys.values():
-            while monkey["items"]:
-                item = monkey["items"].pop()
-                item = monkey["op"](item)
-                monkey["inspected"] += 1
+        for monkey in monkeys:
+            while monkey.items:
+                item = monkey.items.pop()
+                item = monkey.op(item)
+                monkey.inspected += 1
                 item = item % mod
-                dest = monkey["check"](item)
-                monkeys[dest]["items"].append(item)
-    inspections = sorted(monkey["inspected"] for monkey in monkeys.values())
+                dest = monkey.check(item)
+                monkeys[dest].items.append(item)
+    inspections = sorted(monkey.inspected for monkey in monkeys)
     return inspections[-1] * inspections[-2]
 
 
