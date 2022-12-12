@@ -1,8 +1,15 @@
 from collections import deque
+from typing import TypeVar
+
+T = TypeVar("T")
 
 
-def shortest_path(g, start, finish):
+def shortest_path(g: dict[T, list[T]], start: T, finish: T):
+    """Shortest path from start to finish inclusive in g.
+
+    Raises KeyError if no path from start to finish."""
     prev = {}
+    # prev will become dict[node x, node from which node x was reached]
     prev[start] = None
     q = deque()
     q.append(start)
