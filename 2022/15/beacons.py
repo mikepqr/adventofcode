@@ -52,10 +52,14 @@ def discovered_by_sensor(x, y, s):
 def compute2(fname, space=20):
     sensors = parse_input(fname)
     for y in range(space + 1):
-        for x in range(space + 1):
-            discovered = any(discovered_by_sensor(x, y, s) for s in sensors)
-            if not discovered:
-                return x * 4000000 + y
+        excluded = set()
+        for sensor in sensors:
+            excluded.update(set(ysection(sensor, y)))
+        possible = set(range(0, space + 1)).difference(excluded)
+        if possible:
+            break
+
+    return list(possible)[0] * 4000000 + y
 
 
 def test_compute1():
