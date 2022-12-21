@@ -1,13 +1,13 @@
-import copy
-import itertools
 import operator
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+import sympy
+
 
 @dataclass
 class Monkey:
-    value: Optional[int] = None
+    value: Optional[int | sympy.Symbol] = None
     operator: Optional[Callable[[int, int], int]] = None
     m1: Optional[str] = None
     m2: Optional[str] = None
@@ -21,7 +21,7 @@ def op_str_callable(s: str) -> Callable[[int, int], int]:
     elif s == "*":
         return operator.mul
     elif s == "/":
-        return operator.floordiv
+        return operator.truediv  # truediv required for sympy
     else:
         raise ValueError(f"Unknown operand {s}")
 
@@ -58,8 +58,14 @@ def compute1(fname):
 
 
 def compute2(fname):
+    monkeys = parse_input(fname)
+    monkeys["humn"].value = sympy.Symbol("humn")
+    for m in monkeys:
+        if monkeys[m].value is None:
+            monkeys[m].value = sympy.Symbol(m)
+
     def compute_value(m):
-        if monkeys[m].value is not None:
+        if monkeys[m].m1 is None:
             return monkeys[m].value
         else:
             v1 = compute_value(monkeys[m].m1)
@@ -68,15 +74,14 @@ def compute2(fname):
             monkeys[m].value = value
             return value
 
-    for i in itertools.count(1):
-        if i % 1000 == 0:
-            print(i)
-        monkeys = parse_input(fname)
-        monkeys["humn"].value = i
-        v1 = compute_value(monkeys["root"].m1)
-        v2 = compute_value(monkeys["root"].m2)
-        if v1 == v2:
-            return i
+    compute_value("root")
+
+    v1 = monkeys[monkeys["root"].m1].value
+    v2 = monkeys[monkeys["root"].m2].value
+
+    humn = sympy.solve(v1 - v2, monkeys["humn"].value)
+
+    return int(humn[0])
 
 
 def test_compute1():
