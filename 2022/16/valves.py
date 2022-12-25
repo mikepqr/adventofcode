@@ -1,4 +1,5 @@
 from collections import defaultdict, deque
+from typing import Collection, Optional
 
 
 def parse_input(fname):
@@ -10,6 +11,45 @@ def parse_input(fname):
             neighbors = [token.strip(",") for token in line.split()[9:]]
             valves[name] = {"neighbors": neighbors, "rate": rate}
     return valves
+
+
+def compute_distances(g, start, included: Optional[Collection] = None):
+    """
+    Returns a dict[str, int] whose values are the distance from start to key
+    destination.
+    """
+    if included is None:
+        included = g.keys()
+    distances = {}
+    visited = set()
+    q = deque()
+    q.append((start, 0))
+    while q:
+        curr, d = q.popleft()
+        visited.add(curr)
+        if curr in included and curr != start:
+            distances[curr] = d
+        for nbr in g[curr]["neighbors"]:
+            if nbr not in visited:
+                q.append((nbr, d + 1))
+
+    return distances
+
+
+def compress_graph(g, start):
+    """
+    Convert each valves's neighbors list[str] of immediate neighbors to a
+    list[tuple[str, int]] of all other valves with flows > 0 where the int is
+    the distance to that valve.
+
+    Discard all valves with rate = 0 except start
+    """
+    included = {v for v in g if g[v]["rate"] > 0 or v == start}
+    distances = {valve: compute_distances(g, valve, included) for valve in included}
+    compressed_g = {}
+    for valve in included:
+        compressed_g[valve] = {"rate": g[valve]["rate"], "neighbors": distances[valve]}
+    return compressed_g
 
 
 def compute1(fname):
@@ -29,23 +69,22 @@ def compute1(fname):
     # We need the set of valves so far to determine whether a state is worth
     # pursuing, but we do not care about the order in which they were opened
     # when making this decision.
-    q.append(("AA", 1, frozenset(), 0))
+    q.append(("AA", 0, frozenset(), 0))
     best = 0
 
     flowers = frozenset(v for v in g if g[v]["rate"] > 0)
 
     while q:
         curr, t, opened, flowed = q.popleft()
-        print(len(opened))
 
-        if t > T:
+        if t == T:
             best = max(best, flowed)
             continue
 
         if opened == flowers:
             # if everything is open then fast forward the cumulative flow
             # computation
-            flowed += (T - t + 1) * sum(g[v]["rate"] for v in opened)
+            flowed += (T - t) * sum(g[v]["rate"] for v in opened)
             best = max(best, flowed)
             continue
 
@@ -68,6 +107,39 @@ def compute1(fname):
                 q.append((nbr, t + 1, opened, flowed))
 
     return best
+
+
+def compute1_compressed(fname):
+    g = compress_graph(parse_input(fname), "AA")
+
+    T = 30
+    tried = defaultdict(lambda: -1)
+    q = deque()
+    q.append(("AA", 0, frozenset(), 0))
+
+    flowers = frozenset(v for v in g if g[v]["rate"] > 0)
+
+    while q:
+        curr, t, opened, flowed = q.popleft()
+
+        if opened == flowers:
+            flowed += (T - t) * sum(g[v]["rate"] for v in opened)
+            tried[(curr, flowers)] = max(tried[(curr, flowers)], flowed)
+            continue
+
+        if (curr, opened) in tried and flowed <= tried[(curr, opened)]:
+            continue
+        else:
+            tried[(curr, opened)] = flowed
+            if curr in flowers and curr not in opened and t + 1 <= T:
+                next_flowed = flowed + sum(g[v]["rate"] for v in opened)
+                q.append((curr, t + 1, opened.union({curr}), next_flowed))
+            for nbr, d in g[curr]["neighbors"].items():
+                if t + d <= T:
+                    next_flowed = flowed + sum(g[v]["rate"] * d for v in opened)
+                    q.append((nbr, t + d, opened, next_flowed))
+
+    return max(f for _, f in tried.items())
 
 
 def compute2(fname):
