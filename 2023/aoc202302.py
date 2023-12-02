@@ -1,3 +1,68 @@
+from dataclasses import dataclass
+
+
+@dataclass
+class Turn:
+    red: int = 0
+    blue: int = 0
+    green: int = 0
+
+
+def parse_game(s: str) -> tuple[int, list[Turn]]:
+    """
+    >>> s = "Game 1: 7 green, 4 blue, 3 red; 4 blue, 10 red, 1 green; 1 blue, 9 red"
+    >>> parse_game(s)
+    (1,
+      [
+        Turn(red=3, blue=4, green=7),
+        Turn(red=10, blue=4, green=1),
+        Turn(red=9, blue=1, green=0)
+      ]
+    )
+    """
+    game_number = int(s.split(":")[0].split()[1])
+    turn_strings = s.split(":")[1].strip().split(";")
+    turns = []
+    for turn_string in turn_strings:
+        turn = Turn()
+        for cubes in turn_string.split(", "):
+            setattr(turn, cubes.split()[1], int(cubes.split()[0]))
+        turns.append(turn)
+    return game_number, turns
+
+
+def check_game(turns: list[Turn]) -> bool:
+    return all(valid_turn(turn) for turn in turns)
+
+
+def valid_turn(turn: Turn) -> bool:
+    return all(
+        (
+            turn.red <= 12,
+            turn.green <= 13,
+            turn.blue <= 14,
+        )
+    )
+
+
+def part1() -> int:
+    games = [parse_game(line) for line in data]
+    return sum(game_number for game_number, turns in games if check_game(turns))
+
+
+def power(turns: list[Turn]) -> int:
+    min_red = min_blue = min_green = 0
+    for turn in turns:
+        min_red = max(turn.red, min_red)
+        min_blue = max(turn.blue, min_blue)
+        min_green = max(turn.green, min_green)
+    return min_red * min_blue * min_green
+
+
+def part2() -> int:
+    return sum(power(parse_game(line)[1]) for line in data)
+
+
 data = """
 Game 1: 7 green, 4 blue, 3 red; 4 blue, 10 red, 1 green; 1 blue, 9 red
 Game 2: 2 red, 4 blue, 3 green; 5 green, 3 red, 1 blue; 3 green, 5 blue, 3 red
@@ -100,53 +165,6 @@ Game 98: 6 red, 6 green, 5 blue; 19 red, 7 green; 6 green, 8 blue, 4 red; 10 gre
 Game 99: 9 red, 8 blue, 10 green; 3 blue, 7 green, 8 red; 6 red, 12 blue; 8 blue, 8 green, 2 red; 16 green, 14 blue, 5 red
 Game 100: 8 red, 13 green; 5 red, 4 green; 7 blue, 3 red, 8 green; 13 blue, 6 green; 1 blue, 8 green, 7 red; 2 red, 1 green, 16 blue
 """.strip().splitlines()
-
-
-def parse_game(s: str):
-    game_number = int(s.split(":")[0].split()[1])
-    turn_strings = s.split(":")[1].strip().split(";")
-    turns = []
-    for turn_string in turn_strings:
-        turn = {}
-        for cubes in turn_string.split(", "):
-            turn[cubes.split()[1]] = int(cubes.split()[0])
-        turns.append(turn)
-    return game_number, turns
-
-
-def check_game(turns):
-    """
-    Each turn may not exceed 12 red cubes, 13 green cubes, and 14 blue cubes
-    """
-    for turn in turns:
-        if any(
-            (
-                turn.get("red", 0) > 12,
-                turn.get("green", 0) > 13,
-                turn.get("blue", 0) > 14,
-            )
-        ):
-            return False
-    return True
-
-
-def power(turns):
-    min_red = min_blue = min_green = 0
-    for turn in turns:
-        min_red = max(turn.get("red", 0), min_red)
-        min_blue = max(turn.get("blue", 0), min_blue)
-        min_green = max(turn.get("green", 0), min_green)
-    return min_red * min_blue * min_green
-
-
-def part1():
-    games = [parse_game(line) for line in data]
-    return sum(game_number for game_number, turns in games if check_game(turns))
-
-
-def part2():
-    return sum(power(parse_game(line)[1]) for line in data)
-
 
 print(part1())
 print(part2())
