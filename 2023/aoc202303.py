@@ -1,67 +1,106 @@
 import re
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Generator, Optional
 
 
-def in_bounds(x: int, y: int, nx: int, ny: int) -> bool:
-    return 0 <= x < nx and 0 <= y < ny
+@dataclass(frozen=True)
+class Part:
+    part_number: int
+    start: int
+    end: int
+    y: Optional[int] = None
 
 
-def perimeter(x1: int, x2: int, y: int, nx: int, ny: int):
+@dataclass(frozen=True)
+class Coord:
+    x: int
+    y: int
+
+
+@dataclass
+class Grid:
+    data: list[str]
+
+    def __getitem__(self, point: Coord):
+        return self.data[point.y][point.x]
+
+    def __iter__(self):
+        yield from self.data
+
+    @property
+    def NX(self):
+        return len(self.data[0])
+
+    @property
+    def NY(self):
+        return len(self.data)
+
+    def contains(self, point: Coord) -> bool:
+        return 0 <= point.x < self.NX and 0 <= point.y < self.NY
+
+
+def perimeter(
+    x1: int,
+    x2: int,
+    y: int,
+    grid: Grid,
+) -> Generator[tuple[Coord, str], None, None]:
     """
-    Yields the perimeter of line at y going from x1 to x2.
+    Yields the coordinate and value of the Grid along the perimeter of a section
+    of line at row y going from x1 to x2.
     """
 
     def naive_perimeter():
-        yield from ((xi, y - 1) for xi in range(x1 - 1, x2 + 1))
-        yield from ((xi, y + 1) for xi in range(x1 - 1, x2 + 1))
-        yield x1 - 1, y
-        yield x2, y
+        yield from (Coord(xi, y - 1) for xi in range(x1 - 1, x2 + 1))
+        yield from (Coord(xi, y + 1) for xi in range(x1 - 1, x2 + 1))
+        yield Coord(x1 - 1, y)
+        yield Coord(x2, y)
 
-    yield from ((x, y) for x, y in naive_perimeter() if in_bounds(x, y, nx, ny))
+    yield from ((p, grid[p]) for p in naive_perimeter() if grid.contains(p))
 
 
 def is_symbol(c: str) -> bool:
     return c != "." and not c.isdigit()
 
 
-def find_numbers(line):
-    """
-    Returns the values and starting and ending positions of all numbers in line
-    """
+def find_parts(line) -> Generator[Part, None, None]:
     for match in re.finditer(r"\d+", line):
-        yield int(match.group()), match.start(), match.end()
+        yield Part(
+            part_number=int(match.group()),
+            start=match.start(),
+            end=match.end(),
+        )
 
 
-def part1():
+def part1() -> int:
     total = 0
-    nx = len(data[0])
-    ny = len(data)
-    for y, line in enumerate(data):
-        for val, x1, x2 in find_numbers(line):
-            if any(is_symbol(data[py][px]) for px, py in perimeter(x1, x2, y, nx, ny)):
-                total += val
+    schematic = Grid(data=data)
+    for y, line in enumerate(schematic):
+        for part in find_parts(line):
+            if any(
+                is_symbol(val)
+                for _, val in perimeter(part.start, part.end, y, schematic)
+            ):
+                total += part.part_number
     return total
 
 
-def find_gears():
+def find_gears(schematic: Grid) -> dict[Coord, list[int]]:
     """
     Returns a mapping from gear position to a list of adjacent part numbers
-
-    A gear must have two adjacent parts.
     """
-    nx = len(data[0])
-    ny = len(data)
     gears = defaultdict(list)
-    for y, line in enumerate(data):
-        for val, x1, x2 in find_numbers(line):
-            for px, py in perimeter(x1, x2, y, nx, ny):
-                if data[py][px] == "*":
-                    gears[(px, py)].append(val)
+    for y, line in enumerate(schematic):
+        for part in find_parts(line):
+            for point, char in perimeter(part.start, part.end, y, schematic):
+                if char == "*":
+                    gears[point].append(part.part_number)
     return {gear: parts for gear, parts in gears.items() if len(parts) == 2}
 
 
-def part2():
-    gears = find_gears()
+def part2() -> int:
+    gears = find_gears(Grid(data=data))
     return sum(parts[0] * parts[1] for parts in gears.values())
 
 
