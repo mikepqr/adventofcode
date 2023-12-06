@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from functools import reduce, total_ordering
 
 
-@total_ordering
 @dataclass
+@total_ordering
 class Interval:
     start: int
     length: int
@@ -11,55 +11,57 @@ class Interval:
     def contains(self, x):
         return self.start <= x < self.start + self.length
 
-    def __eq__(self, other):
-        return self.start == other.start and self.length == other.length
-
     def __lt__(self, other):
         return self.start < other.start
 
 
-@total_ordering
 @dataclass
 class Mapping:
+    """
+    A single mapping. Returns f(x) in the domain of f. Raises KeyError
+    elsewhere.
+    """
+
     interval: Interval
     dest: int
 
-    def forward(self, key):
-        if self.interval.contains(key):
-            return key - self.interval.start + self.dest
+    def __call__(self, x):
+        if self.interval.contains(x):
+            return x - self.interval.start + self.dest
         else:
             raise KeyError
 
-    def __eq__(self, other):
-        return self.interval == other.interval and self.length == other.length
 
-    def __lt__(self, other):
-        return self.interval < other.interval
+@dataclass
+class MultiMapping:
+    """
+    A mapping formed by combining multiple mappings with non-overlapping
+    domains, f(x), g(x), etc.
 
+    Mapping(x) returns:
+     - f(x) where f is the function f, g, etc. whose domain x is in
+     - x if x is in none of the domains
+    """
 
-class Mappings:
-    def __init__(self, mappings: list[Mapping]):
-        self.mappings = mappings
-        # mappings must be sorted for forward_interval to work
-        self.mappings.sort()
+    mappings: list[Mapping]
 
-    def forward(self, key):
+    def __call__(self, x: int) -> int:
         val = None
         for mapping in self.mappings:
             try:
-                val = mapping.forward(key)
+                val = mapping(x)
             except KeyError:
                 pass
-        return val or key
+        return val or x
 
     def forward_interval(self, interval: Interval) -> list[Interval]:
         """
-        # Returns the intervals found by passing a single interval through these
-        # mappings.
-        #
-        # The bounds of these intervals are found by mapping the start of the
-        # interval, end of the interval, and every point in between that
-        # corresponds to the edge of a mapping.
+        Returns the intervals found by passing a single interval through this
+        MultiMapping
+
+        The bounds of these intervals are found by mapping the start of the
+        interval, end of the interval, and every point in between that
+        corresponds to the edge of a mapping.
         """
         # Construct a list of boundaries each of which is the smallest number in
         # interval to pass through one of the mappings
@@ -71,8 +73,7 @@ class Mappings:
                 edges.append(mapping.interval.start + mapping.interval.length)
 
         # Turn this list of boundaries into a list of intervals
-        edges = [interval.start] + edges
-        edges.append(interval.start + interval.length - 1)
+        edges = [interval.start, *edges, interval.start + interval.length - 1]
         intervals = [
             Interval(edges[i], edges[i + 1] - 1 - edges[i])
             for i in range(len(edges) - 1)
@@ -82,8 +83,7 @@ class Mappings:
         # now map each interval to a new interval cheaply by mapping only its
         # start
         return [
-            Interval(self.forward(interval.start), interval.length)
-            for interval in intervals
+            Interval(self(interval.start), interval.length) for interval in intervals
         ]
 
     def forward_intervals(self, intervals: list[Interval]) -> list[Interval]:
@@ -93,40 +93,53 @@ class Mappings:
         return new_intervals
 
 
+@dataclass
+class Almanac:
+    """
+    A list of MultiMappings, f, g, etc.
+
+    Almanac(x) returns g(f(x))
+    """
+
+    multimappings: list[MultiMapping]
+
+    def __call__(self, x: int) -> int:
+        return reduce(lambda x, multimapping: multimapping(x), self.multimappings, x)
+
+    def forward_interval(self, interval: Interval) -> list[Interval]:
+        return reduce(
+            lambda x, multimapping: multimapping.forward_intervals(x),
+            self.multimappings,
+            [interval],
+        )
+
+
 def parse_block(block: str):
     mappings = []
     for line in block.splitlines()[1:]:
         dest, source, length = [int(token) for token in line.split()]
         mappings.append(Mapping(Interval(source, length), dest))
-    return Mappings(mappings)
+    return MultiMapping(mappings)
 
 
 def parse_input():
     blocks = data.split("\n\n")
     seeds = [int(seed) for seed in blocks[0].split(":")[1].split()]
-    maps = [parse_block(block) for block in blocks[1:]]
-    return seeds, maps
+    multimappings = [parse_block(block) for block in blocks[1:]]
+    return seeds, Almanac(multimappings)
 
 
 def part1():
-    seeds, maps = parse_input()
-    min_loc = 1e100
-    for seed in seeds:
-        loc = reduce(lambda x, map: map.forward(x), maps, seed)
-        min_loc = min(loc, min_loc)
-    return min_loc
+    seeds, almanac = parse_input()
+    return min(almanac(seed) for seed in seeds)
 
 
 def part2():
-    seed_ranges, maps = parse_input()
-    min_loc = 1e100
-    for i in range(0, len(seed_ranges), 2):
-        seed_interval = Interval(seed_ranges[i], seed_ranges[i + 1])
-        location_intervals = reduce(
-            lambda x, map: map.forward_intervals(x), maps, [seed_interval]
-        )
-        min_loc = min(min_loc, min(interval.start for interval in location_intervals))
-    return min_loc
+    seeds, almanac = parse_input()
+    seed_intervals = [Interval(seeds[i], seeds[i + 1]) for i in range(0, len(seeds), 2)]
+    return min(
+        min(almanac.forward_interval(seed_interval)) for seed_interval in seed_intervals
+    ).start
 
 
 data = """
