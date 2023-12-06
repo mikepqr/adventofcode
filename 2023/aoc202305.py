@@ -1,51 +1,103 @@
-from functools import reduce
+from dataclasses import dataclass
+from functools import reduce, total_ordering
 
 
+@total_ordering
+@dataclass
+class Interval:
+    start: int
+    length: int
+
+    def contains(self, x):
+        return self.start <= x < self.start + self.length
+
+    def __eq__(self, other):
+        return self.start == other.start and self.length == other.length
+
+    def __lt__(self, other):
+        return self.start < other.start
+
+
+@total_ordering
+@dataclass
 class Mapping:
-    def __init__(self, source, dest, length):
-        self.source = source
-        self.dest = dest
-        self.length = length
+    interval: Interval
+    dest: int
 
-    def _map(self, key, source, dest):
-        i = key - source
-        if 0 <= i < self.length:
-            return dest + i
+    def forward(self, key):
+        if self.interval.contains(key):
+            return key - self.interval.start + self.dest
         else:
             raise KeyError
 
-    def forward(self, key):
-        return self._map(key, self.source, self.dest)
+    def __eq__(self, other):
+        return self.interval == other.interval and self.length == other.length
 
-    def backward(self, key):
-        return self._map(key, self.dest, self.source)
+    def __lt__(self, other):
+        return self.interval < other.interval
 
 
 class Mappings:
     def __init__(self, mappings: list[Mapping]):
         self.mappings = mappings
+        # mappings must be sorted for forward_interval to work
+        self.mappings.sort()
 
-    def _map(self, key, method):
+    def forward(self, key):
         val = None
         for mapping in self.mappings:
             try:
-                val = getattr(mapping, method)(key)
+                val = mapping.forward(key)
             except KeyError:
                 pass
         return val or key
 
-    def forward(self, key):
-        return self._map(key, "forward")
+    def forward_interval(self, interval: Interval) -> list[Interval]:
+        """
+        # Returns the intervals found by passing a single interval through these
+        # mappings.
+        #
+        # The bounds of these intervals are found by mapping the start of the
+        # interval, end of the interval, and every point in between that
+        # corresponds to the edge of a mapping.
+        """
+        # Construct a list of boundaries each of which is the smallest number in
+        # interval to pass through one of the mappings
+        edges = []
+        for mapping in self.mappings:
+            if interval.contains(mapping.interval.start):
+                edges.append(mapping.interval.start)
+            if interval.contains(mapping.interval.start + mapping.interval.length - 1):
+                edges.append(mapping.interval.start + mapping.interval.length)
 
-    def backward(self, key):
-        return self._map(key, "backward")
+        # Turn this list of boundaries into a list of intervals
+        edges = [interval.start] + edges
+        edges.append(interval.start + interval.length - 1)
+        intervals = [
+            Interval(edges[i], edges[i + 1] - 1 - edges[i])
+            for i in range(len(edges) - 1)
+        ]
+
+        # Each of these intervals passes through exactly one mapping, so we can
+        # now map each interval to a new interval cheaply by mapping only its
+        # start
+        return [
+            Interval(self.forward(interval.start), interval.length)
+            for interval in intervals
+        ]
+
+    def forward_intervals(self, intervals: list[Interval]) -> list[Interval]:
+        new_intervals = []
+        for interval in intervals:
+            new_intervals.extend(self.forward_interval(interval))
+        return new_intervals
 
 
 def parse_block(block: str):
     mappings = []
     for line in block.splitlines()[1:]:
         dest, source, length = [int(token) for token in line.split()]
-        mappings.append(Mapping(source, dest, length))
+        mappings.append(Mapping(Interval(source, length), dest))
     return Mappings(mappings)
 
 
@@ -56,35 +108,25 @@ def parse_input():
     return seeds, maps
 
 
-def min_location(seeds, maps):
+def part1():
+    seeds, maps = parse_input()
     min_loc = 1e100
     for seed in seeds:
-        loc = reduce(lambda x, map: map.f(x), maps, seed)
+        loc = reduce(lambda x, map: map.forward(x), maps, seed)
         min_loc = min(loc, min_loc)
     return min_loc
 
 
-def part1():
-    seeds, maps = parse_input()
-    return min_location(seeds, maps)
-
-
-def is_seed(seed, seed_ranges):
-    for i in range(0, len(seed_ranges), 2):
-        if seed_ranges[i] <= seed < seed_ranges[i] + seed_ranges[i + 1]:
-            return True
-    return False
-
-
 def part2():
-    # ~9 minutes with pypy
     seed_ranges, maps = parse_input()
-    loc = 0
-    while True:
-        seed = reduce(lambda x, map: map.b(x), maps[::-1], loc)
-        if is_seed(seed, seed_ranges):
-            return loc
-        loc += 1
+    min_loc = 1e100
+    for i in range(0, len(seed_ranges), 2):
+        seed_interval = Interval(seed_ranges[i], seed_ranges[i + 1])
+        location_intervals = reduce(
+            lambda x, map: map.forward_intervals(x), maps, [seed_interval]
+        )
+        min_loc = min(min_loc, min(interval.start for interval in location_intervals))
+    return min_loc
 
 
 data = """
