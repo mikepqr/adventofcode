@@ -89,13 +89,13 @@ class Hand:
         self.hand_type = self.determine_hand_type(self.cards)
 
     def __lt__(self, other):
-        return [self.hand_type, *self.cards] < [other.hand_type, *other.cards]
+        return (self.hand_type, self.cards) < (other.hand_type, other.cards)
 
     def __eq__(self, other):
         return (self.hand_type, self.cards) == (other.hand_type, other.cards)
 
     def __repr__(self):
-        return str(self.hand_type) + ":" + "".join(card.c for card in self.cards)
+        return f"{self.hand_type} ({''.join(card.c for card in self.cards)})"
 
     def determine_hand_type(self, cards: list[Card]) -> HandType:
         if self.joker:
