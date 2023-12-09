@@ -16,8 +16,7 @@ OFFSETS = (
 
 
 def adjacent(x, y, z):
-    for dx, dy, dz in OFFSETS:
-        yield x + dx, y + dy, z + dz
+    yield from ((x + dx, y + dy, z + dz) for dx, dy, dz in OFFSETS)
 
 
 def exposed_sides(point, droplet):
@@ -27,6 +26,39 @@ def exposed_sides(point, droplet):
 def part1():
     droplet = parse_input()
     return sum(exposed_sides(point, droplet) for point in droplet)
+
+
+def find_surface(droplet):
+    xlim, ylim, zlim = (
+        (min(x for x, _, _ in droplet) - 1, max(x for x, _, _ in droplet) + 1),
+        (min(y for _, y, _ in droplet) - 1, max(y for _, y, _ in droplet) + 1),
+        (min(z for _, _, z in droplet) - 1, max(z for _, _, z in droplet) + 1),
+    )
+    loc = (xlim[0], ylim[0], zlim[0])
+    seen = {loc}
+    q = set(adjacent(*loc))
+    surface = 0
+
+    while q:
+        loc = q.pop()
+        seen.add(loc)
+        for neighbor in adjacent(*loc):
+            if (
+                xlim[0] <= loc[0] <= xlim[1]
+                and ylim[0] <= loc[1] <= ylim[1]
+                and zlim[0] <= loc[2] <= zlim[1]
+            ):
+                if neighbor in droplet:
+                    surface += 1
+                elif neighbor not in seen:
+                    q.add(neighbor)
+
+    return surface
+
+
+def part2():
+    droplet = parse_input()
+    return find_surface(droplet)
 
 
 data = """
