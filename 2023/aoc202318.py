@@ -1,94 +1,107 @@
-from collections import deque
+from dataclasses import dataclass
+from itertools import pairwise
+
+import numpy
+
+
+@dataclass
+class Vector:
+    x: int
+    y: int
+
+    def __add__(self, other):
+        return Vector(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other):
+        return Vector(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, n):
+        return Vector(self.x * n, self.y * n)
+
 
 DIRECTIONS = {
-    "R": (1, 0),
-    "L": (-1, 0),
-    "D": (0, 1),
-    "U": (0, -1),
+    "R": Vector(1, 0),
+    "L": Vector(-1, 0),
+    "D": Vector(0, 1),
+    "U": Vector(0, -1),
 }
 
 
-def find_edge():
-    loc = (0, 0)
-    edge = {loc}
-    for line in data:
-        direction, distance, _ = line.split()
-        distance = int(distance)
-        direction = DIRECTIONS[direction]
-        for _ in range(1, distance + 1):
-            loc = loc[0] + direction[0], loc[1] + direction[1]
-            edge.add(loc)
-
-    minx = min(s[0] for s in edge)
-    miny = min(s[1] for s in edge)
-
-    return {(e[0] - minx, e[1] - miny) for e in edge}
-
-
-def draw_points(points=None):
-    if points is None:
-        points = set()
-    maxx = max(s[0] for s in points)
-    maxy = max(s[1] for s in points)
-    for y in range(maxy + 1):
-        for x in range(maxx + 1):
-            print("#" if (x, y) in points else ".", end="")
-        print()
-
-
-def flood_from_border(edge):
-    maxx = max(s[0] for s in edge)
-    maxy = max(s[1] for s in edge)
-
-    border = (
-        [(0, y) for y in range(maxy)]
-        + [(maxx, y) for y in range(maxy)]
-        + [(x, 0) for x in range(maxx)]
-        + [(x, maxy) for x in range(maxx)]
-    )
-
-    outside = set()
-    q = deque()
-
-    for start in border:
-        q.append(start)
-        while q:
-            x, y = q.popleft()
-            if (x, y) in edge or (x, y) in outside:
-                continue
-            outside.add((x, y))
-            for dx, dy in DIRECTIONS.values():
-                new_x, new_y = x + dx, y + dy
-                if 0 <= new_x <= maxx and 0 <= new_y <= maxy:
-                    q.append((new_x, new_y))
-
-    n_unflooded = (maxx + 1) * (maxy + 1) - len(outside)
-    return n_unflooded
+def parse_instruction_1(line: str) -> tuple[Vector, int]:
+    direction, distance, _ = line.split()
+    distance = int(distance)
+    direction = DIRECTIONS[direction]
+    return direction, distance
 
 
 DIRECTIONS_2 = {
-    "0": (1, 0),
-    "2": (-1, 0),
-    "1": (0, 1),
-    "3": (0, -1),
+    "0": Vector(1, 0),
+    "2": Vector(-1, 0),
+    "1": Vector(0, 1),
+    "3": Vector(0, -1),
 }
 
 
-def find_edge_part2():
-    loc = (0, 0)
-    edge = {loc}
+def parse_instruction_2(line: str) -> tuple[Vector, int]:
+    instruction = line.split()[2]
+    distance = int(instruction[2:-2], 16)
+    direction = DIRECTIONS_2[instruction[-2]]
+    return direction, distance
+
+
+def find_vertices(parse_function):
+    loc = Vector(0, 0)
+    vertices = [loc]
     for line in data:
-        instruction = line.split()[2].strip("()")
-        distance = int(instruction[1:-1], 16)
-        direction = DIRECTIONS_2[instruction[-1]]
-        for _ in range(1, distance + 1):
-            loc = loc[0] + direction[0], loc[1] + direction[1]
-            edge.add(loc)
+        direction, distance = parse_function(line)
+        loc = loc + direction * distance
+        vertices.append(loc)
 
-    minx = min(s[0] for s in edge)
-    miny = min(s[1] for s in edge)
+    origin = Vector(
+        min(s.x for s in vertices),
+        min(s.y for s in vertices),
+    )
+    return [v - origin for v in vertices]
 
-    return {(e[0] - minx, e[1] - miny) for e in edge}
+
+def shoelace_area(vertices: list[Vector]) -> int:
+    """
+    Returns the area enclosed by list of vertices using the Shoelace Theorem
+    """
+    x = numpy.array([v.x for v in vertices])
+    y = numpy.array([v.y for v in vertices])
+    return (
+        numpy.abs(numpy.dot(x, numpy.roll(y, 1)) - numpy.dot(y, numpy.roll(x, 1)))
+    ) // 2
+
+
+def wall_length(vertices: list[Vector]) -> int:
+    """
+    Returns the length of the boundary defined by a list of vertices that define
+    horizontal and vertical walls.
+    """
+    return sum(abs(v1.x - v2.x) + abs(v1.y - v2.y) for v1, v2 in pairwise(vertices))
+
+
+def interior_points(vertices: list[Vector]) -> int:
+    """
+    Compute the number of integer x, y points enclosed by a shape defined by a
+    list of vertices using Pick's theorem, i.e.
+
+      area = (enclosed points) + (points on boundary) / 2 - 1
+
+    """
+    return shoelace_area(vertices) - wall_length(vertices) // 2 + 1
+
+
+def part1():
+    vertices = find_vertices(parse_instruction_1)
+    return interior_points(vertices) + wall_length(vertices)
+
+
+def part2():
+    vertices = find_vertices(parse_instruction_2)
+    return interior_points(vertices) + wall_length(vertices)
 
 
 data = """
@@ -714,23 +727,6 @@ U 10 (#702653)
 """.strip().splitlines()
 
 
-def part1():
-    edge = find_edge()
-    return flood_from_border(edge)
-
-
-def part2():
-    edge = find_edge_part2()
-    return flood_from_border(edge)
-
-
 if __name__ == "__main__":
     print(part1())
     print(part2())
-
-
-# part 2
-# pick a random point in the edge
-# at least one of its four neighbors is inside the trench
-# - figure this out using ray casting
-# then flood fill from that point
