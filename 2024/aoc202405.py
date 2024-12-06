@@ -28,7 +28,7 @@ def construct_subgraph(pages):
     """
     g = defaultdict(set)
     for before, after in rules:
-        if before in update and after in pages:
+        if before in pages and after in pages:
             g[before].add(after)
     return g
 
