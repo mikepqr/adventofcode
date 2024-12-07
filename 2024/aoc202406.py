@@ -3,18 +3,6 @@ from dataclasses import dataclass
 import aoc202606data
 import tqdm
 
-UP = (0, -1)
-RIGHT = (1, 0)
-DOWN = (0, 1)
-LEFT = (-1, 0)
-
-NEXT_DIRECTION = {
-    UP: RIGHT,
-    RIGHT: DOWN,
-    DOWN: LEFT,
-    LEFT: UP,
-}
-
 
 @dataclass(frozen=True)
 class Guard:
@@ -24,7 +12,31 @@ class Guard:
     dy: int
 
 
-def move(guard, obstacles):
+UP = (0, -1)
+RIGHT = (1, 0)
+DOWN = (0, 1)
+LEFT = (-1, 0)
+
+NEXT_DIRECTION: dict[tuple[int, int], tuple[int, int]] = {
+    UP: RIGHT,
+    RIGHT: DOWN,
+    DOWN: LEFT,
+    LEFT: UP,
+}
+
+CHAR_TO_DIRECTION = {
+    "^": UP,
+    ">": RIGHT,
+    "v": DOWN,
+    "<": LEFT,
+}
+
+Map = list[list[str]]
+Position = tuple[int, int]
+Positions = set[Position]
+
+
+def move(guard: Guard, obstacles: Positions) -> Guard:
     x_, y_ = guard.x + guard.dx, guard.y + guard.dy
     # raise if we're about to move off the map
     if any((x_ < 0, y_ < 0, x_ >= NX, y_ >= NY)):
@@ -37,34 +49,30 @@ def move(guard, obstacles):
         return Guard(x_, y_, guard.dx, guard.dy)
 
 
-def print_map(map, visited=None):
+def print_map(map: Map, visited: Positions | None = None):
     if visited is None:
         visited = set()
     for y, line in enumerate(map):
         print("".join("X" if (x, y) in visited else c for x, c in enumerate(line)))
 
 
-def find_guard(map):
+def find_guard(map: Map) -> Guard:
     for y, line in enumerate(map):
         for x, c in enumerate(line):
-            if c == "^":
-                return Guard(x, y, *UP)
-            elif c == ">":
-                return Guard(x, y, *RIGHT)
-            elif c == "v":
-                return Guard(x, y, *DOWN)
-            elif c == "<":
-                return Guard(x, y, *LEFT)
+            try:
+                return Guard(x, y, *CHAR_TO_DIRECTION[c])
+            except KeyError:
+                pass
     raise
 
 
-def find_obstacles(map):
+def find_obstacles(map: Map) -> Positions:
     return {
         (x, y) for y, line in enumerate(map) for x, c in enumerate(line) if c == "#"
     }
 
 
-def explore(map):
+def explore(map: Map) -> Positions:
     guard = find_guard(map)
     obstacles = find_obstacles(map)
     visited = set()
@@ -78,7 +86,7 @@ def explore(map):
     return visited
 
 
-def in_loop(guard, obstacles):
+def in_loop(guard: Guard, obstacles: Positions) -> bool:
     guards = set()
     guards.add(guard)
 
@@ -92,7 +100,7 @@ def in_loop(guard, obstacles):
         guards.add(guard)
 
 
-def find_loops(map, possible_obstacles):
+def find_loops(map: Map, possible_obstacles: Positions) -> int:
     guard = find_guard(map)
     obstacles = find_obstacles(map)
 
