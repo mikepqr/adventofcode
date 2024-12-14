@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import aoc202412data
 
 test = """\
@@ -12,6 +14,19 @@ MIIIIIJJEE
 MIIISIJEEE
 MMMISSJEEE""".splitlines()
 
+test2 = """\
+AAAAAA
+AAABBA
+AAABBA
+ABBAAA
+ABBAAA
+AAAAAA""".splitlines()
+
+test3 = """\
+BA
+AB""".splitlines()
+
+# map = test
 map = aoc202412data.data
 
 NX = len(map[0])
@@ -63,3 +78,53 @@ def regions():
 
 def part1():
     return sum(region_cost(region) for region in regions())
+
+
+def contiguous_sets(s: set) -> int:
+    child2parent = {x: x for x in s}
+
+    n = len(set(child2parent.values()))
+
+    while True:
+        for x in child2parent:
+            if x - 1 in child2parent:
+                child2parent[x - 1] = child2parent[x]
+                for c, p in child2parent.items():
+                    if p == x - 1:
+                        child2parent[c] = x
+            if x + 1 in child2parent:
+                child2parent[x + 1] = child2parent[x]
+                for c, p in child2parent.items():
+                    if p == x + 1:
+                        child2parent[c] = x
+        n_ = len(set(child2parent.values()))
+        if n == n_:
+            return n
+        else:
+            n = n_
+
+
+def count_edges(region):
+    hedges = defaultdict(set)
+    vedges = defaultdict(set)
+
+    for plot in region:
+        for dx, dy in DIRECTIONS:
+            if (plot[0] + dx, plot[1] + dy) not in region:
+                if dy:
+                    hedges[(plot[1], dy)].add(plot[0])
+                if dx:
+                    vedges[(plot[0], dx)].add(plot[1])
+
+    nedges = sum(
+        contiguous_sets(edge) for edge in list(hedges.values()) + list(vedges.values())
+    )
+
+    return nedges
+
+
+def part2():
+    cost = 0
+    for region in regions():
+        cost += count_edges(region) * len(region)
+    print(cost)
