@@ -24,7 +24,7 @@ class Point:
 
 
 Walls = set[Point]
-Boxes = LBoxes = RBoxes = set[Point]
+Boxes = set[Point]
 Robot = Point
 Route = list[Move]
 
@@ -143,7 +143,7 @@ class World2(World):
 
     def prepare_move(self, move) -> tuple[bool, Boxes]:
         boxes_to_move = set()
-        q = deque()
+        q: deque[Point] = deque()
         q.append(self.robot + move)
         while q:
             p = q.popleft()
